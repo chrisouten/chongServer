@@ -13,6 +13,7 @@ var cls = require("./lib/class"),
     http = require('http'),
     _ = require('underscore'),
     BISON = require('bison'),
+    MessageTypes = require("./messagetypes"),
     WS = {},
     useBison = false;
 
@@ -85,7 +86,7 @@ var Connection = cls.Class.extend({
     },
     
     close: function(logError) {
-        log.info("Closing connection to "+this._connection.remoteAddress+". Error: "+logError);
+        console.log("Closing connection to "+this._connection.remoteAddress+". Error: "+logError);
         this._connection.close();
     }
 });
@@ -116,7 +117,8 @@ WS.MultiVersionWebsocketServer = Server.extend({
     },
     _connections: {},
     _counter: 0,
-    _games: [],
+    _players : [],
+    _games : [],
     
     init: function(port) {
         var self = this;
@@ -191,20 +193,34 @@ WS.MultiVersionWebsocketServer = Server.extend({
         return '5' + r + '' + (this._counter++);
     },
     
-    broadcast: function(message) {
+    broadcast: function(message, excludeConnID) {
         this.forEachConnection(function(connection) {
-            connection.send(message);
+            if (connection.id != excludeConnID)
+                connection.send(message);
         });
     },
     
     onRequestStatus: function(status_callback) {
         this.status_callback = status_callback;
     },
-
-    updateGamess: function(games) {
-        this._games = games;
+    
+    getPlayerList : function(excludePlayer) {
+        return _.pluck(_.filter(this._players, function(player){
+            return player != excludePlayer
+        }), 'username');
     },
 
+    addPlayer : function(player) {
+        this._players.push(player);
+        var msg = {'type': MessageTypes.PLAYER_JOINED};
+        msg.name = player.username;
+        this.broadcast(msg, player.connection.id);
+    },
+    
+    removePlayer : function(player) {
+        this._players.pop(player);
+    },
+    
 });
 
 

@@ -7,6 +7,7 @@
     , "websocket": ">0"
     , "websocket-server": ">0"
 	, "bison": ">0"
+	, "redis": ">0"
   }
 }
 
