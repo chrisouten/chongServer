@@ -61,7 +61,7 @@ module.exports = Board = cls.Class.extend({
         
     },
     
-    load : function() {
-        
+    load : function(savedBoard) {
+        var board_data = JSON.parse(savedBoard);
     }
 });
