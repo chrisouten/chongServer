@@ -8,10 +8,10 @@ var cls = require("./lib/class"),
 client.select(1);
 
 module.exports = Board = cls.Class.extend({
-    init: function(player, id) {
+    init: function(player, id, server) {
         var self = this;
         this.id = id;
-		
+		this.server = server;
         client.get("board" +id, function (err, obj) {
             if (obj !== null) {
                 self.load(obj);
@@ -21,8 +21,8 @@ module.exports = Board = cls.Class.extend({
         });
     },
     
-    createNewBoard : function(playerId, id) {
-		this.owner = playerId;
+    createNewBoard : function(player, id) {
+		this.owner = player;
         this.player1 = null;
         this.player2 = null;
         
@@ -53,9 +53,9 @@ module.exports = Board = cls.Class.extend({
 		this.board[7][4] = BoardTypes.PLAYER1PAWN;
 		this.board[0][3] = BoardTypes.PLAYER2PAWN;
     },
-    
-    save : function() {
-        var save_data = {
+	
+	serialize : function() {
+		var boardData = {
 			'board': this.board,
 			'currentTurn': this.currentTurn,
 			'player1Blocks': this.player1Blocks,
@@ -65,8 +65,11 @@ module.exports = Board = cls.Class.extend({
 			'player2' : this.player2,
 			'validMoves': this.validMoves
 		}
-		client.set('board' + this.id, JSON.stringify(save_data));
-        
+		return boardData;
+	},
+    
+    save : function() {
+		client.set('board' + this.id, JSON.stringify(this.serialize()));
     },
     
     load : function(savedBoard) {
@@ -80,6 +83,24 @@ module.exports = Board = cls.Class.extend({
 		this.player1 = board_data.player1;
 		this.player2 = board_data.player2;
     },
+	
+	join : function(player, slot) {
+		if (slot == 1 && this.player1 == null) {
+			this.player1 = player.username;
+			player.joinedGame(board);
+		}
+		if (slot == 2 && this.player2 == null) {
+			this.player2 = player.username;
+			player.joinedGame(board);
+		}
+		if (this.player2 != null && this.player1 != null) {
+			this.startGame();
+		}
+	},
+	
+	startGame : function() {
+		
+	},
 	
 	getPlayerPosition : function(playerIndex) {
 		var	returnVal = [],
@@ -140,7 +161,7 @@ module.exports = Board = cls.Class.extend({
 			            return block[0] == x && block[1] == y;         
 			        });
 		} else {
-			valid = (((moveData.moveType == BoardTypes.PLAYER1BLOCK  && this.player1Blocks > 0 )||
+			valid = (((moveData.moveType == BoardTypes.PLAYER1BLOCK && this.player1Blocks > 0)||
 					  (moveData.moveType == BoardTypes.PLAYER2BLOCK && this.player2Blocks > 0))
 					 && moveData.x != 8 && moveData.x != 0)
 					 
@@ -152,14 +173,15 @@ module.exports = Board = cls.Class.extend({
 				this.player1Blocks -= 1;
 			if (moveData.moveType == BoardTypes.PLAYER2BLOCK)
 				this.player2Blocks -= 1;
+		
+			this.currentTurn = this.currentTurn == 1 ? 0 : 1;
+			this.setValidMoves();
+			this.server.submitBoardMove(this);
 		}
-		this.currentTurn = this.currentTurn == 1 ? 0 : 1;
-		this.setValidMoves();
 		return valid;
-		}
 	},
 	
-	checkWin = function () {
+	checkWin : function () {
 	    if (this.getPlayerPosition(0)[0] == 0)
 	        return 1;
 	    if (this.getPlayerPosition(1)[0] == 7)

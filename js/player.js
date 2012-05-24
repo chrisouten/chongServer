@@ -50,6 +50,9 @@ module.exports = Player = cls.Class.extend({
             if (messageType == MessageTypes.WHO) {
                 self.sendPlayerList();
             }
+            if (messageType == MessageTypes.JOIN_GAME) {
+                self.server.joinGame(self)
+            }
         });
     },
     _sendMessage : function(msg) {
@@ -58,6 +61,13 @@ module.exports = Player = cls.Class.extend({
     
     _broadCast : function(msg) {
         this.connection._server.broadcast(msg);  
+    },
+    
+    updateBoard : function(board) {
+        var msg = {};
+        msg.type = MessageTypes.BOARD_UPDATE;
+        msg.board = board.serialize();
+        this._sendMessage(msg);
     },
     
     sendWelcome : function(name) {

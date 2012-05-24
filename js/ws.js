@@ -15,7 +15,11 @@ var cls = require("./lib/class"),
     BISON = require('bison'),
     MessageTypes = require("./messagetypes"),
     WS = {},
-    useBison = false;
+    useBison = false,
+    redis = require("redis"),
+    client = redis.createClient();
+    
+client.select(1);
 
 module.exports = WS;
 
@@ -186,6 +190,7 @@ WS.MultiVersionWebsocketServer = Server.extend({
                 }
             }
         });
+        this.joinGame(null);
     },
     
     _createId: function() {
@@ -220,6 +225,40 @@ WS.MultiVersionWebsocketServer = Server.extend({
     removePlayer : function(player) {
         this._players.pop(player);
     },
+    
+    getPlayer : function(username) {
+      return _.find(this._players, function(player) {
+        return player.username == username;
+      });
+    },
+    
+    joinGame : function(player) {
+        var server = this;
+        var board = null;
+        client.keys('*', function (err, replies) {
+            board = _.find(replies, function(board) {
+                return client.get(board, function (err2, data) {
+                    var board_data = JSON.parse(data);
+                    if (board_data.player1 == null || board_data.player2 == null) {
+                        console.log('hit');
+                        return board_data.id;
+                    }
+                })
+            })
+            return Board(player, board, server);
+        })
+        
+    },
+    
+    submitBoardMove : function(board) {
+        var p1, p2;
+        p1 = this.getPlayer(board.player1);
+        if (p1 != null)
+            p1.updateBoard(board);
+        p2 = this.getPlayer(board.player2);
+        if (p2 != null)
+            p2.updateBoard(board);
+    }
     
 });
 
